@@ -1,6 +1,7 @@
 import axios from "axios";
 
 
+
 // Safely extract API URL across Vite, Create React App, and local fallback
 const getBaseUrl = () => {
   // Vite environment variable
@@ -25,11 +26,7 @@ const api = axios.create({
 
 // Request Interceptor: Logs outgoing requests in browser console (F12)
 api.interceptors.request.use(
-  (config) => {
-    console.log(
-      `🚀 [Axios Outgoing Request] ${config.method?.toUpperCase()} -> ${config.baseURL}${config.url}`,
-      config.data || config.params || "",
-    );
+  (config) => {    
     return config;
   },
   (error) => {
@@ -41,11 +38,7 @@ api.interceptors.request.use(
 // Response Interceptor: Logs responses and formats backend errors
 api.interceptors.response.use(
   (response) => {
-    console.log(
-      `✅ [Axios Response Success] ${response.config.method?.toUpperCase()} -> ${response.config.url}`,
-      response.data,
-    );
-    return response;
+       return response;
   },
   (error) => {
     if (error.response) {
@@ -91,12 +84,12 @@ export const ProjectsAPI = {
     api.post("/projects/restore", { projects }).then((r) => r.data),
 };
 
-// Settings API Services
 export const SettingsAPI = {
-  getVerticals: () => api.get("/settings/verticals").then((r) => r.data),
+  getVerticals: () =>
+    api.get("/verticals").then((r) => r.data),
 
   saveVerticals: (verticals) =>
-    api.put("/settings/verticals", { verticals }).then((r) => r.data),
+    api.put("/verticals", { verticals }).then((r) => r.data),
 };
 
 export default api;

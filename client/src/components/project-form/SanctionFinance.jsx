@@ -34,6 +34,7 @@ const SanctionFinance = ({ formData, handleChange }) => {
             }}
           />
         </div>
+        
 
         {/* 2. Sanctioned Amount */}
 

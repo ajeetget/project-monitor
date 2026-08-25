@@ -1,150 +1,562 @@
-
-import { useMemo, useState } from 'react';
-import { ProjectsAPI } from '../api.js';
-import { STAGE_DEFS } from '../constants.js';
-import { fmtLakhs, getStage } from '../utils.js';
+import { useMemo, useState } from "react";
+import { ProjectsAPI } from "../api.js";
+import { STAGE_DEFS } from "../constants.js";
+import { fmtLakhs, getStage } from "../utils.js";
 
 export default function ProjectsList({
   projects = [],
   verticals = [],
-  search = '',
+  search = "",
   onOpenDetail,
   onEdit,
-  onRefresh
+  onRefresh,
 }) {
-  const [stageFilter, setStageFilter] = useState('');
-  const [verticalFilter, setVerticalFilter] = useState('');
+  const [stageFilter, setStageFilter] = useState("");
+  const [verticalFilter, setVerticalFilter] = useState("");
   const [deletingId, setDeletingId] = useState(null);
 
-  // 1. Safely normalize projects into an array
+  /* =========================================================
+     1. PROJECTS
+  ========================================================= */
+
   const safeProjects = Array.isArray(projects)
     ? projects
-    : (projects?.projects || projects?.data || []);
+    : [];
 
-  const safeVerticals = Array.isArray(verticals) ? verticals : [];
+  const safeVerticals = Array.isArray(verticals)
+    ? verticals
+    : [];
 
-  // 2. Compute stages safely
-  const withStage = useMemo(() => {
-    return safeProjects.map(p => ({
-      ...p,
-      __stage: typeof getStage === 'function' ? getStage(p) : (p.stage || 'active')
-    }));
-  }, [safeProjects]);
+  const verticalMap = useMemo(() => {
+    const map = {};
 
-  // 3. Filter projects based on search and selected dropdowns
-  const filtered = useMemo(() => {
-    return withStage.filter(p => {
-      if (stageFilter && p.__stage !== stageFilter) return false;
-      if (verticalFilter && (p.vertical || 'Unassigned') !== verticalFilter) return false;
-
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (
-        (p.code || '').toLowerCase().includes(q) ||
-        (p.title || '').toLowerCase().includes(q) ||
-        (p.lab || '').toLowerCase().includes(q) ||
-        (p.pi || '').toLowerCase().includes(q) ||
-        (p.scientists || '').toLowerCase().includes(q)
-      );
+    safeVerticals.forEach((vertical) => {
+      if (vertical?._id) {
+        map[String(vertical._id)] =
+          vertical.name || "Unnamed";
+      }
     });
-  }, [withStage, search, stageFilter, verticalFilter]);
 
-  // 4. Handle project deletion
-  async function handleDelete(e, id) {
-    e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this project?')) return;
+    return map;
+  }, [safeVerticals]);
+
+  console.log(
+    "VERTICAL MAP:",
+    verticalMap
+  );
+
+  /* =========================================================
+     4. ADD VERTICAL NAME + STAGE TO PROJECT
+  ========================================================= */
+
+  const projectsWithDetails = useMemo(() => {
+    return safeProjects.map((project) => {
+
+      const verticalName =
+        verticalMap[
+          String(project.verticalId)
+        ] || "Unassigned";
+
+      const stage =
+        typeof getStage === "function"
+          ? getStage(project)
+          : project.stage || "active";
+
+      return {
+        ...project,
+
+        __vertical: verticalName,
+
+        __stage: stage,
+      };
+    });
+  }, [
+    safeProjects,
+    verticalMap,
+  ]);
+
+  /* =============== 5. FILTER PROJECTS =================== */
+
+  const filteredProjects = useMemo(() => {
+    const query =
+      search
+        .trim()
+        .toLowerCase();
+
+    return projectsWithDetails.filter(
+      (project) => {
+
+    /* -------------- Stage filter ---------------- */
+
+        if (
+          stageFilter &&
+          project.__stage !== stageFilter
+        ) {
+          return false;
+        }
+
+        /* ------------- Vertical filter ----------------- */
+
+        if (
+          verticalFilter &&
+          project.__vertical !== verticalFilter
+        ) {
+          return false;
+        }
+
+      /* --------------  Search ------------------- */
+
+        if (!query) {
+          return true;
+        }
+
+        return (
+          String(project.code || "")
+            .toLowerCase()
+            .includes(query) ||
+
+          String(project.title || "")
+            .toLowerCase()
+            .includes(query) ||
+
+          String(
+            project.stakeholdingDrdoLabs || ""
+          )
+            .toLowerCase()
+            .includes(query) ||
+
+          String(project.piName || "")
+            .toLowerCase()
+            .includes(query) ||
+
+          String(
+            project.stakeholdingScientist || ""
+          )
+            .toLowerCase()
+            .includes(query) ||
+
+          String(project.__vertical || "")
+            .toLowerCase()
+            .includes(query)
+        );
+      }
+    );
+  }, [
+    projectsWithDetails,
+    search,
+    stageFilter,
+    verticalFilter,
+  ]);
+
+  /* ==================  6. DELETE PROJECT ================== */
+
+  async function handleDelete(event, id) {
+    event.stopPropagation();
+
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this project?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
     setDeletingId(id);
+
     try {
-      await ProjectsAPI.delete(id);
-      if (onRefresh) await onRefresh();
-    } catch (err) {
-      alert('Failed to delete project.');
+      await ProjectsAPI.remove(id);
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error) {
+      console.error(
+        "Failed to delete project:",
+        error
+      );
+
+      alert(
+        "Failed to delete project."
+      );
     } finally {
       setDeletingId(null);
     }
   }
 
+  /* =====================   7. EDIT PROJECT ================= */
+
+  function handleEdit(event, id) {
+    event.stopPropagation();
+
+    if (onEdit) {
+      onEdit(id);
+    }
+  }
+
+  /* =================  8. OPEN PROJECT DETAIL ============= */
+
+  function handleOpenDetail(project) {
+    if (onOpenDetail) {
+      onOpenDetail(project);
+    }
+  }
+
+  /* ======================  9. RENDER ================= */
+
   return (
     <div className="panel">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <h3>Projects <span className="tag">{filtered.length} shown</span></h3>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <select value={stageFilter} onChange={e => setStageFilter(e.target.value)}>
-            <option value="">All Stages</option>
-            {STAGE_DEFS.map(s => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
+      {/* ================  HEADER ===================== */}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+
+        <h3>
+          Projects{" "}
+
+          <span className="tag">
+            {filteredProjects.length} shown
+          </span>
+        </h3>
+
+        {/* ==================  FILTERS ====================== */}
+
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+
+          {/* ---------------- STAGE FILTER ---------------- */}
+
+          <select
+            value={stageFilter}
+            onChange={(event) =>
+              setStageFilter(
+                event.target.value
+              )
+            }
+          >
+
+            <option value="">
+              All Stages
+            </option>
+
+            {STAGE_DEFS.map(
+              (stage) => (
+                <option
+                  key={stage.key}
+                  value={stage.key}
+                >
+                  {stage.label}
+                </option>
+              )
+            )}
+
           </select>
 
-          <select value={verticalFilter} onChange={e => setVerticalFilter(e.target.value)}>
-            <option value="">All Verticals</option>
-            {safeVerticals.map((v, i) => (
-              <option key={i} value={v}>{v}</option>
-            ))}
+      {/* -----VERTICAL FILTER  SAME STRUCTURE AS ProjectIdentifier---- */}
+
+          <select
+            value={verticalFilter}
+            onChange={(event) =>
+              setVerticalFilter(
+                event.target.value
+              )
+            }
+          >
+
+            <option value="">
+              All Verticals
+            </option>
+
+            {safeVerticals.map(
+              (vertical) => (
+                <option
+                  key={vertical._id}
+                  value={vertical.name}
+                >
+                  {vertical.name}
+                </option>
+              )
+            )}
+
           </select>
+
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {/* ======================  EMPTY STATE =============== */}
+
+      {filteredProjects.length === 0 ? (
+
         <div className="empty">
-          <div className="big">🔍</div>
-          No projects found matching your criteria.
+
+          <div className="big">
+            🔍
+          </div>
+
+          <div>
+            No projects found matching your criteria.
+          </div>
+
         </div>
+
       ) : (
+
+        /* ================ PROJECT TABLE =================== */
+
         <div className="table-responsive">
+
           <table className="table">
+
+            {/* =============== TABLE HEADER ================== */}
+
             <thead>
+
               <tr>
-                <th>Code</th>
-                <th>Title</th>
-                <th>Lab</th>
-                <th>Vertical</th>
-                <th>Stage</th>
-                <th>Sanctioned</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+
+                <th>
+                  Code
+                </th>
+
+                <th>
+                  Title
+                </th>
+
+                <th>
+                  Lab
+                </th>
+
+                <th>
+                  Vertical
+                </th>
+
+                <th>
+                  Stage
+                </th>
+
+                <th>
+                  Sanctioned
+                </th>
+
+                <th
+                  style={{
+                    textAlign:
+                      "right",
+                  }}
+                >
+                  Actions
+                </th>
+
               </tr>
+
             </thead>
+
+            {/* ================  TABLE BODY ============== */}
+
             <tbody>
-              {filtered.map(p => {
-                const id = p._id || p.id;
-                return (
-                  <tr key={id || p.code} onClick={() => onOpenDetail && onOpenDetail(p)} style={{ cursor: 'pointer' }}>
-                    <td className="proj-code">{p.code}</td>
-                    <td>
-                      <div className="proj-title">{p.title}</div>
-                      <div className="small muted">{p.pi ? `PI: ${p.pi}` : ''}</div>
-                    </td>
-                    <td>{p.lab || '—'}</td>
-                    <td><span className="badge">{p.vertical || 'Unassigned'}</span></td>
-                    <td>
-                      <span className={`badge stage-${p.__stage}`}>
-                        {STAGE_DEFS.find(s => s.key === p.__stage)?.label || p.__stage}
-                      </span>
-                    </td>
-                    <td className="mono">{p.sanctionAmount ? fmtLakhs(p.sanctionAmount) : '—'}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={(e) => { e.stopPropagation(); onEdit && onEdit(id); }}
+
+              {filteredProjects.map(
+                (project) => {
+
+                  const id =
+                    project._id ||
+                    project.id;
+
+                  return (
+                    <tr
+                      key={
+                        id ||
+                        project.code
+                      }
+                      onClick={() =>
+                        handleOpenDetail(
+                          project
+                        )
+                      }
+                      style={{
+                        cursor:
+                          "pointer",
+                      }}
+                    >
+
+                      {/* =========  CODE ========================= */}
+
+                      <td className="proj-code">
+
+                        {project.code ||
+                          "—"}
+
+                      </td>
+
+                      {/* ==============   TITLE ================ */}
+
+                      <td>
+
+                        <div className="proj-title">
+
+                          {project.title ||
+                            "—"}
+
+                        </div>
+
+                        <div className="small muted">
+
+                          {project.piName
+                            ? `PI: ${project.piName}`
+                            : ""}
+
+                        </div>
+
+                      </td>
+
+                      {/* =====================================
+                          LAB
+                      ===================================== */}
+
+                      <td>
+
+                        {project.stakeholdingDrdoLabs ||
+                          "—"}
+
+                      </td>
+
+                      {/* =====================================
+                          VERTICAL
+                      ===================================== */}
+
+                      <td>
+
+                        <span className="badge">
+
+                          {project.__vertical}
+
+                        </span>
+
+                      </td>
+
+                      {/* =====================================
+                          STAGE
+                      ===================================== */}
+
+                      <td>
+
+                        <span
+                          className={`badge stage-${project.__stage}`}
+                        >
+
+                          {STAGE_DEFS.find(
+                            (stage) =>
+                              stage.key ===
+                              project.__stage
+                          )?.label ||
+                            project.__stage}
+
+                        </span>
+
+                      </td>
+
+                      {/* =====================================
+                          SANCTIONED AMOUNT
+                      ===================================== */}
+
+                      <td className="mono">
+
+                        {project.sanctionedAmount
+                          ? fmtLakhs(
+                              project.sanctionedAmount
+                            )
+                          : "—"}
+
+                      </td>
+
+                      {/* =====================================
+                          ACTIONS
+                      ===================================== */}
+
+                      <td
+                        style={{
+                          textAlign:
+                            "right",
+                          whiteSpace:
+                            "nowrap",
+                        }}
                       >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-sm red"
-                        disabled={deletingId === id}
-                        onClick={(e) => handleDelete(e, id)}
-                      >
-                        {deletingId === id ? '...' : 'Delete'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+
+                        {/* ---------------------------------
+                            EDIT
+                        --------------------------------- */}
+
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={(
+                            event
+                          ) =>
+                            handleEdit(
+                              event,
+                              id
+                            )
+                          }
+                        >
+                          Edit
+                        </button>
+
+                        {/* ---------------------------------
+                            DELETE
+                        --------------------------------- */}
+
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm red"
+                          disabled={
+                            deletingId ===
+                            id
+                          }
+                          onClick={(
+                            event
+                          ) =>
+                            handleDelete(
+                              event,
+                              id
+                            )
+                          }
+                        >
+
+                          {deletingId ===
+                          id
+                            ? "..."
+                            : "Delete"}
+
+                        </button>
+
+                      </td>
+
+                    </tr>
+                  );
+                }
+              )}
+
             </tbody>
+
           </table>
+
         </div>
+
       )}
+
     </div>
   );
 }

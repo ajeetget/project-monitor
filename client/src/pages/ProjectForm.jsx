@@ -268,10 +268,7 @@ const ProjectForm = () => {
         );
       }
 
-      console.log(
-        "VERTICALS FROM DATABASE:",
-        data
-      );
+     
 
       setVerticals(
         Array.isArray(data) ? data : []
@@ -1016,15 +1013,7 @@ const ProjectForm = () => {
   // =======================================================
 
   const handleSubmit = async () => {
-    console.log(
-      "SUBMIT FIRED"
-    );
-
-    console.log(
-      "FORM DATA:",
-      formData
-    );
-
+   
     try {
       const response =
         await fetch(
@@ -1043,18 +1032,9 @@ const ProjectForm = () => {
           }
         );
 
-      console.log(
-        "STATUS:",
-        response.status
-      );
-
+     
       const result =
-        await response.json();
-
-      console.log(
-        "BACKEND RESPONSE:",
-        result
-      );
+        await response.json();      
 
       if (!response.ok) {
         throw new Error(
@@ -1062,11 +1042,6 @@ const ProjectForm = () => {
             "Failed to create project"
         );
       }
-
-      console.log(
-        "PROJECT CREATED:",
-        result
-      );
 
       // Clear project form
       setFormData(

@@ -251,20 +251,6 @@ export default function ImportModal({
     }
 
 
-    console.log(
-      "================================="
-    );
-
-    console.log(
-      "SELECTED FILE:",
-      file.name
-    );
-
-    console.log(
-      "================================="
-    );
-
-
     const reader =
       new FileReader();
 
@@ -383,30 +369,6 @@ export default function ImportModal({
         ------------------------------------------
         */
 
-        console.log(
-          "================================="
-        );
-
-        console.log(
-          "EXCEL HEADERS:",
-          excelHeaders
-        );
-
-        console.log(
-          "AUTO MAPPING:",
-          autoMapping
-        );
-
-        console.log(
-          "EXCEL ROWS:",
-          excelRows
-        );
-
-        console.log(
-          "================================="
-        );
-
-
         setHeaders(
           excelHeaders
         );
@@ -427,10 +389,7 @@ export default function ImportModal({
           "Excel read error:",
           error
         );
-
-        alert(
-          "Could not read the Excel file. Please use .xlsx, .xls or .csv."
-        );
+        
       }
     };
 
@@ -530,15 +489,9 @@ export default function ImportModal({
 
   async function runImport() {
 
-    /*
-    -----------------------------------------------
-    FIND CODE COLUMN
-    -----------------------------------------------
-    */
+    /* -----------------   FIND CODE COLUMN -----------------*/
 
-    const codeIndex =
-      mapping.indexOf("code");
-
+    const codeIndex =  mapping.indexOf("code");
 
     /*
     -----------------------------------------------
@@ -546,50 +499,8 @@ export default function ImportModal({
     -----------------------------------------------
     */
 
-    const titleIndex =
-      mapping.indexOf("title");
-
-
-    /*
-    -----------------------------------------------
-    DEBUG MAPPING
-    -----------------------------------------------
-    */
-
-    console.log(
-      "================================="
-    );
-
-    console.log(
-      "IMPORT MODE:",
-      mode
-    );
-
-    console.log(
-      "HEADERS:",
-      headers
-    );
-
-    console.log(
-      "MAPPING:",
-      mapping
-    );
-
-    console.log(
-      "CODE INDEX:",
-      codeIndex
-    );
-
-    console.log(
-      "TITLE INDEX:",
-      titleIndex
-    );
-
-    console.log(
-      "================================="
-    );
-
-
+    const titleIndex = mapping.indexOf("title");    
+    
     /*
     -----------------------------------------------
     REQUIRED FIELD VALIDATION
@@ -639,40 +550,16 @@ export default function ImportModal({
             const title =
               String(
                 row[titleIndex] ?? ""
-              ).trim();
+              ).trim();       
 
 
-            console.log(
-              `ROW ${rowIndex + 1}:`,
-              row
-            );
-
-            console.log(
-              `ROW ${rowIndex + 1} CODE:`,
-              code
-            );
-
-            console.log(
-              `ROW ${rowIndex + 1} TITLE:`,
-              title
-            );
-
-
-            /*
-            ---------------------------------------
-            SKIP INVALID ROW
-            ---------------------------------------
-            */
+            /*-----------  SKIP INVALID ROW -------------*/
 
             if (
               !code ||
               !title
             ) {
-
-              console.warn(
-                `ROW ${rowIndex + 1} SKIPPED`
-              );
-
+             
               return null;
             }
 
@@ -841,49 +728,14 @@ export default function ImportModal({
             ---------------------------------------
             */
 
-            console.log(
-              `FINAL PROJECT ${rowIndex + 1}:`,
-              project
-            );
-
-
+            
             return project;
 
           })
           .filter(Boolean);
 
 
-      /*
-      =============================================
-      SHOW PROJECTS BEFORE API CALL
-      =============================================
-      */
-
-      console.log(
-        "================================="
-      );
-
-      console.log(
-        "PROJECTS TO IMPORT:",
-        projects
-      );
-
-      console.log(
-        "TOTAL PROJECTS:",
-        projects.length
-      );
-
-      console.log(
-        "================================="
-      );
-
-
-      /*
-      =============================================
-      NO VALID PROJECTS
-      =============================================
-      */
-
+     
       if (
         projects.length === 0
       ) {
@@ -914,11 +766,6 @@ export default function ImportModal({
       RESPONSE
       =============================================
       */
-
-      console.log(
-        "IMPORT RESPONSE:",
-        response
-      );
 
 
       alert(
