@@ -619,15 +619,10 @@ useEffect(() => {
                 path="/"
                 element={
                   <Dashboard
-                    projects={
-                      projects
-                    }
-                    search={
-                      search
-                    }
-                    onOpenDetail={
-                      openDetail
-                    }
+                    projects={projects}
+                    verticals={verticals}
+                    search={search}
+                    onOpenDetail={openDetail}
                   />
                 }
               />

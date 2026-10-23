@@ -3,11 +3,14 @@ import React, {
   useState,
 } from "react";
 
+import {
+  useParams,
+  useNavigate,
+} from "react-router-dom";
+
 import "./ProjectForm.css";
 
-// =========================================================
-// COMPONENTS
-// =========================================================
+// ====================== nCOMPONENTS ======================================
 
 import ProjectIdentity from "../components/project-form/ProjectIdentity";
 import PreSanction from "../components/project-form/PreSanction";
@@ -21,6 +24,19 @@ import Outcomes from "../components/project-form/Outcomes";
 import Closure from "../components/project-form/Closure";
 import NextMilestone from "../components/project-form/NextMilestone";
 import GeneralRemarks from "../components/project-form/GeneralRemarks";
+
+// =========================================================
+// DEFAULT BUDGET OPTIONS
+// =========================================================
+
+const DEFAULT_BUDGET_OPTIONS = [
+  "Manpower",
+  "Equipment",
+  "Consumables",
+  "Travel",
+  "Contingency",
+  "Other",
+];
 
 // =========================================================
 // INITIAL FORM DATA
@@ -93,14 +109,7 @@ const initialFormData = {
     {
       head: "Manpower",
       institute: "",
-      options: [
-        "Manpower",
-        "Equipment",
-        "Consumables",
-        "Travel",
-        "Contingency",
-        "Other",
-      ],
+      options: DEFAULT_BUDGET_OPTIONS,
       years: [0],
       total: 0,
     },
@@ -224,10 +233,66 @@ const initialFormData = {
 };
 
 // =========================================================
+// DATE FORMATTER
+// MongoDB Date / ISO Date -> YYYY-MM-DD
+// =========================================================
+
+const formatDateForInput = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  // Already YYYY-MM-DD
+  if (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return value;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+// =========================================================
 // PROJECT FORM
 // =========================================================
 
 const ProjectForm = () => {
+
+  // =======================================================
+  // ROUTER
+  // =======================================================
+
+  const {
+    id,
+  } = useParams();
+
+  const navigate =
+    useNavigate();
+
+  // =======================================================
+  // EDIT MODE
+  // =======================================================
+
+  const isEditMode =
+    Boolean(id);
+
   // =======================================================
   // CURRENT STEP
   // =======================================================
@@ -250,59 +315,477 @@ const ProjectForm = () => {
     useState([]);
 
   // =======================================================
+  // LOADING
+  // =======================================================
+
+  const [loading, setLoading] =
+    useState(false);
+
+  // =======================================================
+  // SAVING
+  // =======================================================
+
+  const [saving, setSaving] =
+    useState(false);
+
+  // =======================================================
   // FETCH VERTICALS
   // =======================================================
 
   const fetchVerticals = async () => {
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/verticals"
-      );
 
-      const data = await response.json();
+    try {
+
+      const response =
+        await fetch(
+          "http://localhost:5000/api/verticals"
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
+
         throw new Error(
           data.message ||
             "Failed to fetch verticals"
         );
       }
 
-     
-
       setVerticals(
-        Array.isArray(data) ? data : []
+        Array.isArray(data)
+          ? data
+          : []
       );
+
     } catch (error) {
+
       console.error(
         "FETCH VERTICALS ERROR:",
         error
       );
+
     }
   };
 
   // =======================================================
-  // LOAD VERTICALS WHEN FORM LOADS
+  // LOAD PROJECT FOR EDIT
+  // =======================================================
+
+  const loadProjectForEdit =
+    async (projectId) => {
+
+      try {
+
+        setLoading(true);
+
+        console.log(
+          "================================="
+        );
+
+        console.log(
+          "EDIT PROJECT"
+        );
+
+        console.log(
+          "PROJECT ID:",
+          projectId
+        );
+
+        console.log(
+          "================================="
+        );
+
+        const response =
+          await fetch(
+            `http://localhost:5000/api/projects/${projectId}`
+          );
+
+        const result =
+          await response.json();
+
+        console.log(
+          "GET PROJECT RESPONSE:",
+          result
+        );
+
+        if (!response.ok) {
+
+          throw new Error(
+            result.message ||
+              "Failed to load project"
+          );
+        }
+
+        // ---------------------------------------------------
+        // Your API may return:
+        //
+        // { success: true, data: {...} }
+        //
+        // or directly:
+        //
+        // {...}
+        // ---------------------------------------------------
+
+        const project =
+          result.data ||
+          result.project ||
+          result;
+
+        if (!project) {
+
+          throw new Error(
+            "Project data not found"
+          );
+        }
+
+        // ===================================================
+        // NORMALIZE PROJECT
+        // ===================================================
+
+        const formattedProject = {
+
+          // Start with defaults
+          ...initialFormData,
+
+          // Existing project
+          ...project,
+
+          // =================================================
+          // DATE FIELDS
+          // =================================================
+
+          sanctionDate:
+            formatDateForInput(
+              project.sanctionDate
+            ),
+
+          projectStartDate:
+            formatDateForInput(
+              project.projectStartDate
+            ),
+
+          eoiDate:
+            formatDateForInput(
+              project.eoiDate
+            ),
+
+          disseminationDate:
+            formatDateForInput(
+              project.disseminationDate
+            ),
+
+          techCloseDate:
+            formatDateForInput(
+              project.techCloseDate
+            ),
+
+          finCloseDate:
+            formatDateForInput(
+              project.finCloseDate
+            ),
+
+          admCloseDate:
+            formatDateForInput(
+              project.admCloseDate
+            ),
+
+          nextMilestoneDate:
+            formatDateForInput(
+              project.nextMilestoneDate
+            ),
+
+          // =================================================
+          // PRE-SANCTION
+          // =================================================
+
+          preSanctionMeetings:
+            Array.isArray(
+              project.preSanctionMeetings
+            )
+              ? project.preSanctionMeetings.map(
+                  (meeting) => ({
+                    ...meeting,
+
+                    date:
+                      formatDateForInput(
+                        meeting.date
+                      ),
+                  })
+                )
+              : initialFormData.preSanctionMeetings,
+
+          // =================================================
+          // DELIVERABLES
+          // =================================================
+
+          deliverables:
+            Array.isArray(
+              project.deliverables
+            )
+              ? project.deliverables.map(
+                  (item) => ({
+                    ...item,
+
+                    targetDate:
+                      formatDateForInput(
+                        item.targetDate
+                      ),
+                  })
+                )
+              : initialFormData.deliverables,
+
+          // =================================================
+          // BUDGET
+          // =================================================
+
+          budgetYears:
+            Number(
+              project.budgetYears
+            ) || 1,
+
+          budgetRows:
+            Array.isArray(
+              project.budgetRows
+            )
+              ? project.budgetRows.map(
+                  (row) => ({
+
+                    head:
+                      row.head ||
+                      "Manpower",
+
+                    institute:
+                      row.institute ||
+                      "",
+
+                    options:
+                      Array.isArray(
+                        row.options
+                      )
+                        ? row.options
+                        : DEFAULT_BUDGET_OPTIONS,
+
+                    years:
+                      Array.isArray(
+                        row.years
+                      )
+                        ? row.years
+                        : [0],
+
+                    total:
+                      Number(
+                        row.total || 0
+                      ),
+
+                  })
+                )
+              : initialFormData.budgetRows,
+
+          // =================================================
+          // POST-SANCTION
+          // =================================================
+
+          postSanctionMeetings:
+            Array.isArray(
+              project.postSanctionMeetings
+            )
+              ? project.postSanctionMeetings.map(
+                  (meeting) => ({
+                    ...meeting,
+
+                    date:
+                      formatDateForInput(
+                        meeting.date
+                      ),
+                  })
+                )
+              : initialFormData.postSanctionMeetings,
+
+          // =================================================
+          // MANPOWER
+          // =================================================
+
+          manpower:
+            Array.isArray(
+              project.manpower
+            )
+              ? project.manpower
+              : initialFormData.manpower,
+
+          // =================================================
+          // PDC EXTENSIONS
+          // =================================================
+
+          pdcExtensions:
+            Array.isArray(
+              project.pdcExtensions
+            )
+              ? project.pdcExtensions.map(
+                  (extension) => ({
+                    ...extension,
+
+                    date:
+                      formatDateForInput(
+                        extension.date
+                      ),
+
+                    revisedPDC:
+                      formatDateForInput(
+                        extension.revisedPDC
+                      ),
+                  })
+                )
+              : initialFormData.pdcExtensions,
+
+          // =================================================
+          // REVISED SANCTIONS
+          // =================================================
+
+          revisedSanctions:
+            Array.isArray(
+              project.revisedSanctions
+            )
+              ? project.revisedSanctions.map(
+                  (sanction) => ({
+                    ...sanction,
+
+                    date:
+                      formatDateForInput(
+                        sanction.date
+                      ),
+                  })
+                )
+              : initialFormData.revisedSanctions,
+
+          // =================================================
+          // CLOSURE MEETINGS
+          // =================================================
+
+          closureMeetings:
+            Array.isArray(
+              project.closureMeetings
+            )
+              ? project.closureMeetings.map(
+                  (meeting) => ({
+                    ...meeting,
+
+                    date:
+                      formatDateForInput(
+                        meeting.date
+                      ),
+                  })
+                )
+              : initialFormData.closureMeetings,
+        };
+
+        // ===================================================
+        // DEBUG
+        // ===================================================
+
+        console.log(
+          "================================="
+        );
+
+        console.log(
+          "PROJECT LOADED:"
+        );
+
+        console.log(
+          formattedProject
+        );
+
+        console.log(
+          "SANCTION DATE:",
+          formattedProject.sanctionDate
+        );
+
+        console.log(
+          "PROJECT START DATE:",
+          formattedProject.projectStartDate
+        );
+
+        console.log(
+          "PRE-SANCTION:",
+          formattedProject.preSanctionMeetings
+        );
+
+        console.log(
+          "DELIVERABLES:",
+          formattedProject.deliverables
+        );
+
+        console.log(
+          "BUDGET:",
+          formattedProject.budgetRows
+        );
+
+        console.log(
+          "================================="
+        );
+
+        // ===================================================
+        // SET FORM DATA
+        // ===================================================
+
+        setFormData(
+          formattedProject
+        );
+
+        setCurrentStep(0);
+
+      } catch (error) {
+
+        console.error(
+          "LOAD PROJECT ERROR:",
+          error
+        );
+
+        alert(
+          error.message ||
+            "Failed to load project"
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+    };
+
+  // =======================================================
+  // INITIAL LOAD
   // =======================================================
 
   useEffect(() => {
+
     fetchVerticals();
-  }, []);
+
+    if (isEditMode) {
+
+      loadProjectForEdit(id);
+
+    }
+
+  }, [id, isEditMode]);
 
   // =======================================================
   // COMMON INPUT CHANGE
   // =======================================================
 
   const handleChange = (e) => {
+
     const {
       name,
       value,
     } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+        [name]: value,
+      })
+    );
   };
 
   // =======================================================
@@ -314,50 +797,70 @@ const ProjectForm = () => {
     field,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedMeetings = [
-        ...prev.preSanctionMeetings,
-      ];
 
-      updatedMeetings[index] = {
-        ...updatedMeetings[index],
-        [field]: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
+        const updatedMeetings =
+          [
+            ...(prev.preSanctionMeetings ||
+              []),
+          ];
+
+        updatedMeetings[index] = {
+          ...updatedMeetings[index],
+          [field]: value,
+        };
+
+        return {
+          ...prev,
+          preSanctionMeetings:
+            updatedMeetings,
+        };
+      }
+    );
+  };
+
+  const addPreSanctionMeetingRow =
+    () => {
+
+      setFormData(
+        (prev) => ({
+          ...prev,
+
+          preSanctionMeetings: [
+            ...(prev.preSanctionMeetings ||
+              []),
+
+            {
+              type: "Pre-TEC",
+              date: "",
+              minutes: "",
+              remarks: "",
+            },
+          ],
+        })
+      );
+    };
+
+  const removeMeeting = (
+    index
+  ) => {
+
+    setFormData(
+      (prev) => ({
         ...prev,
+
         preSanctionMeetings:
-          updatedMeetings,
-      };
-    });
-  };
-
-  const addPreSanctionMeetingRow = () => {
-    setFormData((prev) => ({
-      ...prev,
-
-      preSanctionMeetings: [
-        ...prev.preSanctionMeetings,
-        {
-          type: "Pre-TEC",
-          date: "",
-          minutes: "",
-          remarks: "",
-        },
-      ],
-    }));
-  };
-
-  const removeMeeting = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      preSanctionMeetings:
-        prev.preSanctionMeetings.filter(
-          (_, meetingIndex) =>
-            meetingIndex !== index
-        ),
-    }));
+          (
+            prev.preSanctionMeetings ||
+            []
+          ).filter(
+            (_, meetingIndex) =>
+              meetingIndex !== index
+          ),
+      })
+    );
   };
 
   // =======================================================
@@ -369,261 +872,466 @@ const ProjectForm = () => {
     field,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedDeliverables = [
-        ...prev.deliverables,
-      ];
 
-      updatedDeliverables[index] = {
-        ...updatedDeliverables[index],
-        [field]: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
-        ...prev,
-        deliverables:
-          updatedDeliverables,
-      };
-    });
+        const updatedDeliverables =
+          [
+            ...(prev.deliverables ||
+              []),
+          ];
+
+        updatedDeliverables[index] = {
+          ...updatedDeliverables[index],
+          [field]: value,
+        };
+
+        return {
+          ...prev,
+          deliverables:
+            updatedDeliverables,
+        };
+      }
+    );
   };
 
   const addDeliverableRow = () => {
-    setFormData((prev) => ({
-      ...prev,
 
-      deliverables: [
-        ...prev.deliverables,
-        {
-          description: "",
-          targetDate: "",
-          status: "Pending",
-          remarks: "",
-        },
-      ],
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        deliverables: [
+          ...(prev.deliverables ||
+            []),
+
+          {
+            description: "",
+            targetDate: "",
+            status: "Pending",
+            remarks: "",
+          },
+        ],
+      })
+    );
   };
 
   const removeDeliverableRow = (
     index
   ) => {
-    setFormData((prev) => ({
-      ...prev,
 
-      deliverables:
-        prev.deliverables.filter(
-          (_, deliverableIndex) =>
-            deliverableIndex !== index
-        ),
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        deliverables:
+          (
+            prev.deliverables ||
+            []
+          ).filter(
+            (_, deliverableIndex) =>
+              deliverableIndex !== index
+          ),
+      })
+    );
   };
 
   // =======================================================
-  // BUDGET
+  // BUDGET YEARS
   // =======================================================
 
   const changeBudgetYears = (
     change
   ) => {
-    setFormData((prev) => {
-      const newYears = Math.max(
-        1,
-        prev.budgetYears + change
-      );
 
-      const updatedRows =
-        prev.budgetRows.map((row) => {
-          const updatedYears = [
-            ...row.years,
-          ];
+    setFormData(
+      (prev) => {
 
-          if (
-            newYears >
-            updatedYears.length
-          ) {
-            while (
-              updatedYears.length <
-              newYears
-            ) {
-              updatedYears.push(0);
-            }
-          } else {
-            updatedYears.length =
-              newYears;
-          }
+        const currentYears =
+          Number(
+            prev.budgetYears
+          ) || 1;
 
-          return {
-            ...row,
+        const newYears =
+          Math.max(
+            1,
+            currentYears + change
+          );
 
-            years: updatedYears,
+        const currentRows =
+          Array.isArray(
+            prev.budgetRows
+          )
+            ? prev.budgetRows
+            : [];
 
-            total:
-              updatedYears.reduce(
-                (sum, value) =>
-                  sum +
-                  Number(
-                    value || 0
+        const updatedRows =
+          currentRows.map(
+            (row) => {
+
+              const updatedYears =
+                Array.isArray(
+                  row.years
+                )
+                  ? [
+                      ...row.years,
+                    ]
+                  : [];
+
+              if (
+                newYears >
+                updatedYears.length
+              ) {
+
+                while (
+                  updatedYears.length <
+                  newYears
+                ) {
+
+                  updatedYears.push(
+                    0
+                  );
+
+                }
+
+              } else {
+
+                updatedYears.length =
+                  newYears;
+
+              }
+
+              return {
+                ...row,
+
+                options:
+                  Array.isArray(
+                    row.options
+                  )
+                    ? row.options
+                    : DEFAULT_BUDGET_OPTIONS,
+
+                years:
+                  updatedYears,
+
+                total:
+                  updatedYears.reduce(
+                    (
+                      sum,
+                      value
+                    ) =>
+                      sum +
+                      Number(
+                        value || 0
+                      ),
+                    0
                   ),
-                0
-              ),
-          };
-        });
+              };
+            }
+          );
 
-      return {
-        ...prev,
+        return {
+          ...prev,
 
-        budgetYears: newYears,
+          budgetYears:
+            newYears,
 
-        budgetRows: updatedRows,
-      };
-    });
+          budgetRows:
+            updatedRows,
+        };
+      }
+    );
   };
+
+  // =======================================================
+  // ADD BUDGET ROW
+  // =======================================================
 
   const addBudgetRow = () => {
-    setFormData((prev) => ({
-      ...prev,
 
-      budgetRows: [
-        ...prev.budgetRows,
+    setFormData(
+      (prev) => {
 
-        {
-          head: "Manpower",
-          institute: "",
-
-          options: [
-            "Manpower",
-            "Equipment",
-            "Consumables",
-            "Travel",
-            "Contingency",
-            "Other",
-          ],
-
-          years: Array(
+        const years =
+          Number(
             prev.budgetYears
-          ).fill(0),
+          ) || 1;
 
-          total: 0,
-        },
-      ],
-    }));
+        return {
+          ...prev,
+
+          budgetRows: [
+            ...(prev.budgetRows ||
+              []),
+
+            {
+              head: "Manpower",
+
+              institute: "",
+
+              options:
+                DEFAULT_BUDGET_OPTIONS,
+
+              years:
+                Array(
+                  years
+                ).fill(0),
+
+              total: 0,
+            },
+          ],
+        };
+      }
+    );
   };
+
+  // =======================================================
+  // REMOVE BUDGET ROW
+  // =======================================================
 
   const removeBudgetRow = (
     rowIndex
   ) => {
-    setFormData((prev) => ({
-      ...prev,
 
-      budgetRows:
-        prev.budgetRows.filter(
-          (_, index) =>
-            index !== rowIndex
-        ),
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        budgetRows:
+          (
+            prev.budgetRows ||
+            []
+          ).filter(
+            (_, index) =>
+              index !== rowIndex
+          ),
+      })
+    );
   };
+
+  // =======================================================
+  // BUDGET HEAD
+  // =======================================================
 
   const handleBudgetHeadChange = (
     rowIndex,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedRows = [
-        ...prev.budgetRows,
-      ];
 
-      updatedRows[rowIndex] = {
-        ...updatedRows[rowIndex],
-        head: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
-        ...prev,
-        budgetRows: updatedRows,
-      };
-    });
+        const updatedRows = [
+          ...(prev.budgetRows ||
+            []),
+        ];
+
+        updatedRows[rowIndex] = {
+          ...updatedRows[rowIndex],
+
+          options:
+            Array.isArray(
+              updatedRows[rowIndex]
+                ?.options
+            )
+              ? updatedRows[
+                  rowIndex
+                ].options
+              : DEFAULT_BUDGET_OPTIONS,
+
+          head: value,
+        };
+
+        return {
+          ...prev,
+          budgetRows:
+            updatedRows,
+        };
+      }
+    );
   };
+
+  // =======================================================
+  // BUDGET INSTITUTE
+  // =======================================================
 
   const handleBudgetInstituteChange = (
     rowIndex,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedRows = [
-        ...prev.budgetRows,
-      ];
 
-      updatedRows[rowIndex] = {
-        ...updatedRows[rowIndex],
-        institute: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
-        ...prev,
-        budgetRows: updatedRows,
-      };
-    });
+        const updatedRows = [
+          ...(prev.budgetRows ||
+            []),
+        ];
+
+        updatedRows[rowIndex] = {
+          ...updatedRows[rowIndex],
+
+          institute:
+            value,
+        };
+
+        return {
+          ...prev,
+          budgetRows:
+            updatedRows,
+        };
+      }
+    );
   };
+
+  // =======================================================
+  // BUDGET VALUE
+  // =======================================================
 
   const handleBudgetValueChange = (
     rowIndex,
     yearIndex,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedRows = [
-        ...prev.budgetRows,
-      ];
 
-      const updatedYears = [
-        ...updatedRows[rowIndex].years,
-      ];
+    setFormData(
+      (prev) => {
 
-      updatedYears[yearIndex] =
-        value === ""
-          ? ""
-          : Number(value);
+        const updatedRows = [
+          ...(prev.budgetRows ||
+            []),
+        ];
 
-      const total =
-        updatedYears.reduce(
-          (sum, amount) =>
-            sum +
-            Number(amount || 0),
-          0
-        );
+        const currentRow =
+          updatedRows[
+            rowIndex
+          ] || {
+            head: "Manpower",
+            institute: "",
+            options:
+              DEFAULT_BUDGET_OPTIONS,
+            years: [],
+            total: 0,
+          };
 
-      updatedRows[rowIndex] = {
-        ...updatedRows[rowIndex],
+        const updatedYears =
+          Array.isArray(
+            currentRow.years
+          )
+            ? [
+                ...currentRow.years,
+              ]
+            : [];
 
-        years: updatedYears,
+        updatedYears[
+          yearIndex
+        ] =
+          value === ""
+            ? ""
+            : Number(value);
 
-        total,
-      };
+        const total =
+          updatedYears.reduce(
+            (
+              sum,
+              amount
+            ) =>
+              sum +
+              Number(
+                amount || 0
+              ),
+            0
+          );
 
-      return {
-        ...prev,
-        budgetRows: updatedRows,
-      };
-    });
+        updatedRows[rowIndex] = {
+          ...currentRow,
+
+          options:
+            Array.isArray(
+              currentRow.options
+            )
+              ? currentRow.options
+              : DEFAULT_BUDGET_OPTIONS,
+
+          years:
+            updatedYears,
+
+          total,
+        };
+
+        return {
+          ...prev,
+          budgetRows:
+            updatedRows,
+        };
+      }
+    );
   };
+
+  // =======================================================
+  // YEAR TOTAL
+  // =======================================================
 
   const getYearTotal = (
     yearIndex
   ) => {
-    return formData.budgetRows.reduce(
-      (total, row) =>
-        total +
-        Number(
-          row.years[yearIndex] || 0
-        ),
+
+    const rows =
+      Array.isArray(
+        formData.budgetRows
+      )
+        ? formData.budgetRows
+        : [];
+
+    return rows.reduce(
+      (
+        total,
+        row
+      ) => {
+
+        const years =
+          Array.isArray(
+            row.years
+          )
+            ? row.years
+            : [];
+
+        return (
+          total +
+          Number(
+            years[
+              yearIndex
+            ] || 0
+          )
+        );
+      },
       0
     );
   };
 
+  // =======================================================
+  // GRAND TOTAL
+  // =======================================================
+
   const getGrandTotal = () => {
-    return formData.budgetRows.reduce(
-      (grandTotal, row) =>
+
+    const rows =
+      Array.isArray(
+        formData.budgetRows
+      )
+        ? formData.budgetRows
+        : [];
+
+    return rows.reduce(
+      (
+        grandTotal,
+        row
+      ) =>
         grandTotal +
-        Number(row.total || 0),
+        Number(
+          row.total || 0
+        ),
       0
     );
   };
@@ -637,54 +1345,71 @@ const ProjectForm = () => {
     field,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedMeetings = [
-        ...prev.postSanctionMeetings,
-      ];
 
-      updatedMeetings[index] = {
-        ...updatedMeetings[index],
-        [field]: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
-        ...prev,
-        postSanctionMeetings:
-          updatedMeetings,
-      };
-    });
+        const updatedMeetings =
+          [
+            ...(prev.postSanctionMeetings ||
+              []),
+          ];
+
+        updatedMeetings[index] = {
+          ...updatedMeetings[index],
+          [field]: value,
+        };
+
+        return {
+          ...prev,
+
+          postSanctionMeetings:
+            updatedMeetings,
+        };
+      }
+    );
   };
 
   const addPostSanctionMeetingRow =
     () => {
-      setFormData((prev) => ({
-        ...prev,
 
-        postSanctionMeetings: [
-          ...prev.postSanctionMeetings,
+      setFormData(
+        (prev) => ({
+          ...prev,
 
-          {
-            type: "TEC",
-            date: "",
-            minutes: "",
-            remarks: "",
-          },
-        ],
-      }));
+          postSanctionMeetings: [
+            ...(prev.postSanctionMeetings ||
+              []),
+
+            {
+              type: "TEC",
+              date: "",
+              minutes: "",
+              remarks: "",
+            },
+          ],
+        })
+      );
     };
 
   const removePostMeeting = (
     index
   ) => {
-    setFormData((prev) => ({
-      ...prev,
 
-      postSanctionMeetings:
-        prev.postSanctionMeetings.filter(
-          (_, meetingIndex) =>
-            meetingIndex !== index
-        ),
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        postSanctionMeetings:
+          (
+            prev.postSanctionMeetings ||
+            []
+          ).filter(
+            (_, meetingIndex) =>
+              meetingIndex !== index
+          ),
+      })
+    );
   };
 
   // =======================================================
@@ -696,56 +1421,77 @@ const ProjectForm = () => {
     field,
     value
   ) => {
-    setFormData((prev) => {
-      const updatedManpower = [
-        ...prev.manpower,
-      ];
 
-      updatedManpower[index] = {
-        ...updatedManpower[index],
-        [field]: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
-        ...prev,
-        manpower: updatedManpower,
-      };
-    });
+        const updatedManpower =
+          [
+            ...(prev.manpower ||
+              []),
+          ];
+
+        updatedManpower[index] = {
+          ...updatedManpower[index],
+          [field]: value,
+        };
+
+        return {
+          ...prev,
+
+          manpower:
+            updatedManpower,
+        };
+      }
+    );
   };
 
   const addManpowerRow = () => {
-    setFormData((prev) => ({
-      ...prev,
 
-      manpower: [
-        ...prev.manpower,
+    setFormData(
+      (prev) => ({
+        ...prev,
 
-        {
-          category: "Researcher",
-          name: "",
-          designation: "",
-          specialisation: "",
-        },
-      ],
-    }));
+        manpower: [
+          ...(prev.manpower ||
+            []),
+
+          {
+            category:
+              "Researcher",
+            name: "",
+            designation: "",
+            specialisation:
+              "",
+          },
+        ],
+      })
+    );
   };
 
   const removeManpowerRow = (
     index
   ) => {
-    setFormData((prev) => ({
-      ...prev,
 
-      manpower:
-        prev.manpower.filter(
-          (_, manpowerIndex) =>
-            manpowerIndex !== index
-        ),
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        manpower:
+          (
+            prev.manpower ||
+            []
+          ).filter(
+            (_, manpowerIndex) =>
+              manpowerIndex !==
+              index
+          ),
+      })
+    );
   };
 
   // =======================================================
-  // EXTENSIONS - PDC
+  // PDC EXTENSIONS
   // =======================================================
 
   const handlePdcExtensionChange = (
@@ -753,63 +1499,15 @@ const ProjectForm = () => {
     field,
     value
   ) => {
-    setFormData((prev) => {
-      const updated = [
-        ...prev.pdcExtensions,
-      ];
 
-      updated[index] = {
-        ...updated[index],
-        [field]: value,
-      };
+    setFormData(
+      (prev) => {
 
-      return {
-        ...prev,
-        pdcExtensions: updated,
-      };
-    });
-  };
-
-  const addPdcExtensionRow = () => {
-    setFormData((prev) => ({
-      ...prev,
-
-      pdcExtensions: [
-        ...prev.pdcExtensions,
-
-        {
-          date: "",
-          period: "",
-          revisedPDC: "",
-          remarks: "",
-        },
-      ],
-    }));
-  };
-
-  const removePdcExtension = (
-    index
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-
-      pdcExtensions:
-        prev.pdcExtensions.filter(
-          (_, i) => i !== index
-        ),
-    }));
-  };
-
-  // =======================================================
-  // EXTENSIONS - REVISED SANCTION
-  // =======================================================
-
-  const handleRevisedSanctionChange =
-    (index, field, value) => {
-      setFormData((prev) => {
-        const updated = [
-          ...prev.revisedSanctions,
-        ];
+        const updated =
+          [
+            ...(prev.pdcExtensions ||
+              []),
+          ];
 
         updated[index] = {
           ...updated[index],
@@ -818,39 +1516,129 @@ const ProjectForm = () => {
 
         return {
           ...prev,
-          revisedSanctions: updated,
+
+          pdcExtensions:
+            updated,
         };
-      });
+      }
+    );
+  };
+
+  const addPdcExtensionRow = () => {
+
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        pdcExtensions: [
+          ...(prev.pdcExtensions ||
+            []),
+
+          {
+            date: "",
+            period: "",
+            revisedPDC: "",
+            remarks: "",
+          },
+        ],
+      })
+    );
+  };
+
+  const removePdcExtension = (
+    index
+  ) => {
+
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        pdcExtensions:
+          (
+            prev.pdcExtensions ||
+            []
+          ).filter(
+            (_, i) =>
+              i !== index
+          ),
+      })
+    );
+  };
+
+  // =======================================================
+  // REVISED SANCTION
+  // =======================================================
+
+  const handleRevisedSanctionChange =
+    (
+      index,
+      field,
+      value
+    ) => {
+
+      setFormData(
+        (prev) => {
+
+          const updated =
+            [
+              ...(prev.revisedSanctions ||
+                []),
+            ];
+
+          updated[index] = {
+            ...updated[index],
+            [field]: value,
+          };
+
+          return {
+            ...prev,
+
+            revisedSanctions:
+              updated,
+          };
+        }
+      );
     };
 
   const addRevisedSanctionRow =
     () => {
-      setFormData((prev) => ({
-        ...prev,
 
-        revisedSanctions: [
-          ...prev.revisedSanctions,
+      setFormData(
+        (prev) => ({
+          ...prev,
 
-          {
-            date: "",
-            amount: "",
-            letter: "",
-          },
-        ],
-      }));
+          revisedSanctions: [
+            ...(prev.revisedSanctions ||
+              []),
+
+            {
+              date: "",
+              amount: "",
+              letter: "",
+            },
+          ],
+        })
+      );
     };
 
   const removeRevisedSanction = (
     index
   ) => {
-    setFormData((prev) => ({
-      ...prev,
 
-      revisedSanctions:
-        prev.revisedSanctions.filter(
-          (_, i) => i !== index
-        ),
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        revisedSanctions:
+          (
+            prev.revisedSanctions ||
+            []
+          ).filter(
+            (_, i) =>
+              i !== index
+          ),
+      })
+    );
   };
 
   // =======================================================
@@ -858,119 +1646,163 @@ const ProjectForm = () => {
   // =======================================================
 
   const handleClosureMeetingChange =
-    (index, field, value) => {
-      setFormData((prev) => {
-        const updatedMeetings = [
-          ...prev.closureMeetings,
-        ];
+    (
+      index,
+      field,
+      value
+    ) => {
 
-        updatedMeetings[index] = {
-          ...updatedMeetings[index],
-          [field]: value,
-        };
+      setFormData(
+        (prev) => {
 
-        return {
-          ...prev,
-          closureMeetings:
-            updatedMeetings,
-        };
-      });
+          const updatedMeetings =
+            [
+              ...(prev.closureMeetings ||
+                []),
+            ];
+
+          updatedMeetings[index] = {
+            ...updatedMeetings[index],
+            [field]: value,
+          };
+
+          return {
+            ...prev,
+
+            closureMeetings:
+              updatedMeetings,
+          };
+        }
+      );
     };
 
   const addClosureMeetingRow =
     () => {
-      setFormData((prev) => ({
-        ...prev,
 
-        closureMeetings: [
-          ...prev.closureMeetings,
+      setFormData(
+        (prev) => ({
+          ...prev,
 
-          {
-            type: "Closure TEC",
-            date: "",
-            minutes: "",
-            remarks: "",
-          },
-        ],
-      }));
+          closureMeetings: [
+            ...(prev.closureMeetings ||
+              []),
+
+            {
+              type: "Closure TEC",
+              date: "",
+              minutes: "",
+              remarks: "",
+            },
+          ],
+        })
+      );
     };
 
   const removeClosureMeeting = (
     index
   ) => {
-    setFormData((prev) => ({
-      ...prev,
 
-      closureMeetings:
-        prev.closureMeetings.filter(
-          (_, i) => i !== index
-        ),
-    }));
+    setFormData(
+      (prev) => ({
+        ...prev,
+
+        closureMeetings:
+          (
+            prev.closureMeetings ||
+            []
+          ).filter(
+            (_, i) =>
+              i !== index
+          ),
+      })
+    );
   };
 
   // =======================================================
-  // FORM SECTIONS
+  // FORM STEPS
   // =======================================================
 
   const steps = [
     {
       title: "Project Identity",
-      component: ProjectIdentity,
+      component:
+        ProjectIdentity,
     },
 
     {
       title: "Pre-Sanction",
-      component: PreSanction,
+      component:
+        PreSanction,
     },
 
     {
-      title: "Sanction Finance",
-      component: SanctionFinance,
+      title:
+        "Sanction Finance",
+      component:
+        SanctionFinance,
     },
 
     {
-      title: "Deliverables",
-      component: Deliverables,
+      title:
+        "Deliverables",
+      component:
+        Deliverables,
     },
 
     {
-      title: "Budget Details",
-      component: BudgetDetails,
+      title:
+        "Budget Details",
+      component:
+        BudgetDetails,
     },
 
     {
-      title: "Post-Sanction",
-      component: PostSanction,
+      title:
+        "Post-Sanction",
+      component:
+        PostSanction,
     },
 
     {
-      title: "Manpower",
-      component: Manpower,
+      title:
+        "Manpower",
+      component:
+        Manpower,
     },
 
     {
-      title: "Extensions",
-      component: Extensions,
+      title:
+        "Extensions",
+      component:
+        Extensions,
     },
 
     {
-      title: "Outcomes",
-      component: Outcomes,
+      title:
+        "Outcomes",
+      component:
+        Outcomes,
     },
 
     {
-      title: "Closure",
-      component: Closure,
+      title:
+        "Closure",
+      component:
+        Closure,
     },
 
     {
-      title: "Next Milestone",
-      component: NextMilestone,
+      title:
+        "Next Milestone",
+      component:
+        NextMilestone,
     },
 
     {
-      title: "General Remarks",
-      component: GeneralRemarks,
+      title:
+        "General Remarks",
+      component:
+        GeneralRemarks,
     },
   ];
 
@@ -979,20 +1811,26 @@ const ProjectForm = () => {
   // =======================================================
 
   const CurrentSection =
-    steps[currentStep].component;
+    steps[
+      currentStep
+    ].component;
 
   // =======================================================
   // NEXT
   // =======================================================
 
   const handleNext = () => {
+
     if (
       currentStep <
       steps.length - 1
     ) {
+
       setCurrentStep(
-        (prev) => prev + 1
+        (prev) =>
+          prev + 1
       );
+
     }
   };
 
@@ -1001,129 +1839,293 @@ const ProjectForm = () => {
   // =======================================================
 
   const handlePrevious = () => {
-    if (currentStep > 0) {
+
+    if (
+      currentStep > 0
+    ) {
+
       setCurrentStep(
-        (prev) => prev - 1
+        (prev) =>
+          prev - 1
       );
+
     }
   };
 
   // =======================================================
-  // SUBMIT
+  // SUBMIT / UPDATE
   // =======================================================
 
-  const handleSubmit = async () => {
-   
-    try {
-      const response =
-        await fetch(
-          "http://localhost:5000/api/projects",
-          {
-            method: "POST",
+  const handleSubmit =
+    async () => {
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+      try {
 
-            body: JSON.stringify(
-              formData
-            ),
-          }
+        setSaving(true);
+
+        console.log(
+          "================================="
         );
 
-     
-      const result =
-        await response.json();      
-
-      if (!response.ok) {
-        throw new Error(
-          result.message ||
-            "Failed to create project"
+        console.log(
+          isEditMode
+            ? "UPDATING PROJECT"
+            : "CREATING PROJECT"
         );
+
+        console.log(
+          "PROJECT ID:",
+          id
+        );
+
+        console.log(
+          "FORM DATA:",
+          formData
+        );
+
+        console.log(
+          "================================="
+        );
+
+        // -------------------------------------------------
+        // EDIT = PUT
+        // CREATE = POST
+        // -------------------------------------------------
+
+        const url =
+          isEditMode
+            ? `http://localhost:5000/api/projects/${id}`
+            : "http://localhost:5000/api/projects";
+
+        const method =
+          isEditMode
+            ? "PUT"
+            : "POST";
+
+        const response =
+          await fetch(
+            url,
+            {
+              method,
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify(
+                  formData
+                ),
+            }
+          );
+
+        const result =
+          await response.json();
+
+        console.log(
+          "SAVE RESPONSE:",
+          result
+        );
+
+        if (!response.ok) {
+
+          throw new Error(
+            result.message ||
+              (
+                isEditMode
+                  ? "Failed to update project"
+                  : "Failed to create project"
+              )
+          );
+        }
+
+        // =================================================
+        // SUCCESS
+        // =================================================
+
+        alert(
+          isEditMode
+            ? "Project updated successfully!"
+            : "Project created successfully!"
+        );
+
+        // =================================================
+        // AFTER EDIT
+        // =================================================
+
+        if (isEditMode) {
+
+          // Go back to projects list
+          navigate(
+            "/projects"
+          );
+
+          return;
+        }
+
+        // =================================================
+        // AFTER CREATE
+        // =================================================
+
+        setFormData(
+          initialFormData
+        );
+
+        setCurrentStep(0);
+
+      } catch (error) {
+
+        console.error(
+          "SAVE PROJECT ERROR:",
+          error
+        );
+
+        alert(
+          error.message ||
+            "Failed to save project"
+        );
+
+      } finally {
+
+        setSaving(false);
+
       }
+    };
 
-      // Clear project form
-      setFormData(
-        initialFormData
-      );
+  // =======================================================
+  // LOADING SCREEN
+  // =======================================================
 
-      // Go to first step
-      setCurrentStep(0);
+  if (loading) {
 
-      alert(
-        "Project created successfully!"
-      );
-    } catch (error) {
-      console.error(
-        "SUBMIT ERROR:",
-        error
-      );
+    return (
+      <div
+        className="project-form-container"
+      >
 
-      alert(
-        error.message
-      );
-    }
-  };
+        <h1
+          className="project-form-title"
+        >
+          Project Form
+        </h1>
+
+        <div
+          style={{
+            padding: "40px",
+            textAlign: "center",
+          }}
+        >
+          Loading project...
+        </div>
+
+      </div>
+    );
+  }
 
   // =======================================================
   // JSX
   // =======================================================
 
   return (
-    <div className="project-form-container">
+
+    <div
+      className="project-form-container"
+    >
 
       {/* ===================================================
           TITLE
       =================================================== */}
 
-      <h1 className="project-form-title">
-        Project Form
+      <h1
+        className="project-form-title"
+      >
+        {isEditMode
+          ? "Edit Project"
+          : "Project Form"}
       </h1>
+
+      {/* ===================================================
+          EDIT MODE INDICATOR
+      =================================================== */}
+
+      {isEditMode && (
+
+        <div
+          style={{
+            marginBottom: "15px",
+            padding: "10px 15px",
+            background: "#f5f5f5",
+            borderRadius: "6px",
+          }}
+        >
+          Editing Project ID:{" "}
+          <strong>
+            {id}
+          </strong>
+        </div>
+
+      )}
 
       {/* ===================================================
           STEPPER
       =================================================== */}
 
-      <div className="project-stepper">
+      <div
+        className="project-stepper"
+      >
 
         {steps.map(
-          (step, index) => (
+          (
+            step,
+            index
+          ) => (
+
             <div
-              key={step.title}
+              key={
+                step.title
+              }
               className="project-step"
               onClick={() =>
-                setCurrentStep(index)
+                setCurrentStep(
+                  index
+                )
               }
             >
 
               <div
-                className={`project-step-number ${
-                  currentStep ===
-                  index
-                    ? "project-step-active"
-                    : ""
-                } ${
-                  currentStep > index
-                    ? "project-step-completed"
-                    : ""
-                }`}
+                className={
+                  `project-step-number ${
+                    currentStep ===
+                    index
+                      ? "project-step-active"
+                      : ""
+                  } ${
+                    currentStep >
+                    index
+                      ? "project-step-completed"
+                      : ""
+                  }`
+                }
               >
                 {index + 1}
               </div>
 
               <div
-                className={`project-step-title ${
-                  currentStep ===
-                  index
-                    ? "project-step-title-active"
-                    : ""
-                }`}
+                className={
+                  `project-step-title ${
+                    currentStep ===
+                    index
+                      ? "project-step-title-active"
+                      : ""
+                  }`
+                }
               >
                 {step.title}
               </div>
 
             </div>
+
           )
         )}
 
@@ -1139,14 +2141,17 @@ const ProjectForm = () => {
         }
       >
 
-        {/* CURRENT SECTION */}
+        {/* =================================================
+            CURRENT SECTION
+        ================================================= */}
 
-        <div className="project-form-content">
+        <div
+          className="project-form-content"
+        >
 
           <CurrentSection
-            /* =============================================
-               COMMON
-            ============================================= */
+
+            /* COMMON */
 
             formData={
               formData
@@ -1156,17 +2161,13 @@ const ProjectForm = () => {
               handleChange
             }
 
-            /* =============================================
-               VERTICALS
-            ============================================= */
+            /* VERTICALS */
 
             verticals={
               verticals
             }
 
-            /* =============================================
-               PRE-SANCTION
-            ============================================= */
+            /* PRE-SANCTION */
 
             handleMeetingChange={
               handleMeetingChange
@@ -1180,9 +2181,7 @@ const ProjectForm = () => {
               removeMeeting
             }
 
-            /* =============================================
-               DELIVERABLES
-            ============================================= */
+            /* DELIVERABLES */
 
             handleDeliverableChange={
               handleDeliverableChange
@@ -1196,9 +2195,7 @@ const ProjectForm = () => {
               removeDeliverableRow
             }
 
-            /* =============================================
-               BUDGET
-            ============================================= */
+            /* BUDGET */
 
             budgetYears={
               formData.budgetYears
@@ -1240,9 +2237,7 @@ const ProjectForm = () => {
               getGrandTotal
             }
 
-            /* =============================================
-               POST-SANCTION
-            ============================================= */
+            /* POST-SANCTION */
 
             handlePostMeetingChange={
               handlePostMeetingChange
@@ -1256,9 +2251,7 @@ const ProjectForm = () => {
               removePostMeeting
             }
 
-            /* =============================================
-               MANPOWER
-            ============================================= */
+            /* MANPOWER */
 
             handleManpowerChange={
               handleManpowerChange
@@ -1272,9 +2265,7 @@ const ProjectForm = () => {
               removeManpowerRow
             }
 
-            /* =============================================
-               EXTENSIONS
-            ============================================= */
+            /* EXTENSIONS */
 
             handlePdcExtensionChange={
               handlePdcExtensionChange
@@ -1300,9 +2291,7 @@ const ProjectForm = () => {
               removeRevisedSanction
             }
 
-            /* =============================================
-               CLOSURE
-            ============================================= */
+            /* CLOSURE */
 
             handleClosureMeetingChange={
               handleClosureMeetingChange
@@ -1315,6 +2304,7 @@ const ProjectForm = () => {
             removeClosureMeeting={
               removeClosureMeeting
             }
+
           />
 
         </div>
@@ -1323,7 +2313,9 @@ const ProjectForm = () => {
             FORM ACTIONS
         ================================================= */}
 
-        <div className="project-form-actions">
+        <div
+          className="project-form-actions"
+        >
 
           {/* PREVIOUS */}
 
@@ -1333,37 +2325,56 @@ const ProjectForm = () => {
               handlePrevious
             }
             disabled={
-              currentStep === 0
+              currentStep === 0 ||
+              saving
             }
           >
             Previous
           </button>
 
-          {/* NEXT / SUBMIT */}
+          {/* NEXT */}
 
           {currentStep <
           steps.length - 1 ? (
+
             <button
               type="button"
               onClick={
                 handleNext
               }
+              disabled={
+                saving
+              }
             >
               Next
             </button>
+
           ) : (
+
+            /* SUBMIT / UPDATE */
+
             <button
               type="button"
               onClick={
                 handleSubmit
               }
+              disabled={
+                saving
+              }
             >
-              Submit
+              {saving
+                ? "Saving..."
+                : isEditMode
+                ? "Update Project"
+                : "Submit"}
             </button>
+
           )}
 
         </div>
+
       </form>
+
     </div>
   );
 };

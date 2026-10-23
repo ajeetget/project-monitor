@@ -40,10 +40,6 @@ export default function ProjectsList({
     return map;
   }, [safeVerticals]);
 
-  console.log(
-    "VERTICAL MAP:",
-    verticalMap
-  );
 
   /* =========================================================
      4. ADD VERTICAL NAME + STAGE TO PROJECT
@@ -498,7 +494,7 @@ export default function ProjectsList({
                         {/* ---------------------------------
                             EDIT
                         --------------------------------- */}
-
+                        
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"

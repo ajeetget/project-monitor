@@ -24,7 +24,7 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Request Interceptor: Logs outgoing requests in browser console (F12)
+// Request Interceptor: Logs 
 api.interceptors.request.use(
   (config) => {    
     return config;
