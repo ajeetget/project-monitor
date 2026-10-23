@@ -6,13 +6,17 @@ const NAV_ITEMS = [
   { key: 'form', icon: '＋', label: 'Add Project' },
   { key: 'reports', icon: '▤', label: 'Reports' }
 ];
+import logo from "../../public/drdo-logo.png";
 
 export default function Sidebar({ view, onNavigate }) {
   return (
     <div id="sidebar">
       <div className="brand">
+        <img className="logo-pic" src={logo} />
+        <div>
         <div className="brand-mark">R&amp;D MONITOR</div>
         <div className="brand-title">Project Governance Tracker</div>
+        </div>
       </div>
       <nav>
         {NAV_ITEMS.map(item => (
